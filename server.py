@@ -20,26 +20,35 @@ except socket.error as e:
 covers = []
 for i in range(covers_count):
 	covers.append((random.randrange(MAP_WIDTH), random.randrange(MAP_HEIGHT), random.randrange(40, 80), random.randrange(40, 80)))
+
+usernames = [None] * 100
+locations = [None] * 100
 print('Waiting for a Connection..')
 ServerSocket.listen(5)
 
 
 def threaded_client(connection):
+	global player_count
+	player_id = player_count
+	player_count += 1
 	connection.send(str.encode(str(covers)))
 	username = connection.recv(1024)
-	connection.send(str.encode([player_count, random.randrange(MAP_WIDTH), random.randrange(MAP_HEIGHT)]))
+	usernames[player_id] = username
+	location = (random.randrange(MAP_WIDTH), random.randrange(MAP_HEIGHT))
+	locations[player_id] = location
+	connection.send(str.encode(str([player_id, location])))
+	connection.send(str.encode(str((usernames, locations))))
 	while True:
-		data = connection.recv(2048)
-		reply = 'Server Says: ' + data.decode('utf-8')
-		if not data:
+		new_location = connection.recv(2048)
+		locations[player_id] = eval(new_location.decode('utf-8'))
+		if not new_location:
 			break
-		connection.sendall(str.encode(reply))
+		connection.send(str.encode(str((usernames, locations))))
 	connection.close()
 
 while True:
 	Client, address = ServerSocket.accept()
-	player_count += 1
 	print('Connected to: ' + address[0] + ':' + str(address[1]))
 	start_new_thread(threaded_client, (Client, ))
-	print('Number of Players: ' + str(player_count))
+	print('Number of Players: ' + str(player_count + 1))
 ServerSocket.close()

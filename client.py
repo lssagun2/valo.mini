@@ -5,12 +5,12 @@ from pygame.locals import *
 
 
 #connect to server
-ClientSocket = socket.socket()
+client_socket = socket.socket()
 HOST = '127.0.0.1'
 PORT = 1233
 print('Waiting for connection')
 try:
-	ClientSocket.connect((HOST, PORT))
+	client_socket.connect((HOST, PORT))
 except socket.error as e:
 	print(str(e))
 
@@ -22,12 +22,14 @@ USERNAME = "asdasd"
 #colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-PLAYER = (7,135,123)
+PLAYER_COLOR = (7,135,123)
 
 #classes
 class Player(pygame.sprite.Sprite):
 	def __init__(self, ID, username, color, radius, speed):
 		pygame.sprite.Sprite.__init__(self)
+		self.ID = ID
+		self.username = username
 		self.health = 100
 		self.speed = 1
 		self.radius = radius
@@ -76,9 +78,6 @@ class Cover(pygame.sprite.Sprite):
 		pygame.sprite.Sprite.__init__(self)
 		self.image = pygame.Surface([width, height])
 		self.rect = self.image.get_rect()
-#initialize Pygame
-pygame.init()
-clock = pygame.time.Clock()
 
 #create main display
 screen = pygame.display.set_mode((500, 500))
@@ -87,7 +86,7 @@ map_surface = pygame.Surface((MAP_WIDTH, MAP_HEIGHT))
 map_surface = map_surface.convert()
 
 #receive data about covers from server and create Cover objects
-covers_data = ClientSocket.recv(4096)
+covers_data = client_socket.recv(4096)
 covers_data = eval(covers_data.decode('utf-8'))
 covers = pygame.sprite.Group()
 for cover_data in covers_data:
@@ -98,38 +97,80 @@ for cover_data in covers_data:
 	covers.add(cover)
 
 #communicate with server about player information (id and initial location) of this client
-username = input("Please input username: ")
-ClientSocket.send(str.encode(username))
-my_info = ClientSocket.recv(2048)
+my_username = input("Please input username: ")
+client_socket.send(str.encode(my_username))
+my_info = client_socket.recv(2048)
 my_info = eval(my_info.decode('utf-8'))
-my_id, initial_x, initial_y = my_info
+my_id, location = my_info
 
 #create Player object for this client
 players = pygame.sprite.Group()
-me = Player(1, username, PLAYER, 7, 3)
-me.rect.x = initial_x
-me.rect.y = initial_y
+me = Player(my_id, my_username, PLAYER_COLOR, 7, 3)
+me.rect.x = location[0]
+me.rect.y = location[1]
 players.add(me)
 
-#retrieve list of players
+#get other information players
+other_players = client_socket.recv(8192)
+other_usernames, other_locations = eval(other_players.decode('utf-8'))
 
+#create Player objects for other players
+for i in range(len(other_locations)):
+	if i == my_id:
+		continue
+	if other_usernames[i] is None:
+		continue
+	username = other_usernames[i]
+	location = other_locations[i]
+	player = Player(i, username, PLAYER_COLOR, 7, 3)
+	player.rect.x = location[0]
+	player.rect.y = location[1]
+	players.add(player)
+for player in players.sprites():
+	print(player)
+#initialize Pygame
+pygame.init()
+clock = pygame.time.Clock()
 
 
 
 #main loop
+pressed = {pygame.K_w: False, pygame.K_UP: False, pygame.K_s: False, pygame.K_DOWN: False, pygame.K_d: False, pygame.K_RIGHT: False, pygame.K_a: False, pygame.K_LEFT: False, K_RSHIFT: False, K_LSHIFT: False}
 done = False
 while not done:
 	for event in pygame.event.get():
 		if event.type == QUIT:
 			done = True
-		# if event.type == KEYDOWN and event.key in pressed.keys():
-		# 	pressed[event.key] = True
-		# if event.type == KEYUP and event.key in pressed.keys():
-		# 	pressed[event.key] = False
-	# me.move(pressed)
+		if event.type == KEYDOWN and event.key in pressed.keys():
+			pressed[event.key] = True
+		if event.type == KEYUP and event.key in pressed.keys():
+			pressed[event.key] = False
+	me.move(pressed)
+	client_socket.send(str.encode(str((me.rect.x, me.rect.y))))
+	other_players = client_socket.recv(8192)
+	other_usernames, other_locations = eval(other_players.decode('utf-8'))
+	for i in range(len(other_locations)):
+		if i == my_id:
+			continue
+		if other_locations[i] is None:
+			continue
+		location = other_locations[i]
+		username = other_usernames[i]
+		found = False
+		for player in players.sprites():
+			if player.ID != i:
+				continue
+			found = True
+			player.rect.x = location[0]
+			player.rect.y = location[1]
+		if not found:
+			new_player = Player(i, username, PLAYER_COLOR, 7, 3)
+			new_player.rect.x = location[0]
+			new_player.rect.y = location[1]
+			players.add(new_player)
 	map_surface.fill(WHITE)
-	players.draw(map_surface)
 	covers.draw(map_surface)
+	players.draw(map_surface)
 	left = me.rect.x - 250
 	if left < 0:
 		left = 0
@@ -140,13 +181,13 @@ while not done:
 		top = 0
 	elif top + 500 > MAP_HEIGHT:
 		top = MAP_HEIGHT - 500
-	screen.blit(map_surface, (0, 0), (0, 0, 500, 500))
+	screen.blit(map_surface, (0, 0), (left, top, 500, 500))
 	pygame.display.flip()
 	clock.tick(60)
 
 	# Input = input('Say Something: ')
-	# ClientSocket.send(str.encode(Input))
-	# Response = ClientSocket.recv(1024)
+	# client_socket.send(str.encode(Input))
+	# Response = client_socket.recv(1024)
 	# print(Response.decode('utf-8'))
 
-ClientSocket.close()
+client_socket.close()
