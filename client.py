@@ -4,7 +4,18 @@ import time
 import math
 from pygame.locals import *
 
-
+images = {"sage": None}
+for character in images.keys():
+	images[character] = {"up": None, "down": None, "left": None, "right": None, "still": None}
+	for direction in images[character].keys():
+		directory = "assets/characters/" + character + "/" + direction + "/"
+		images[character][direction] = [pygame.image.load(directory + str(i) + ".png") for i in range(1, 9)]
+masks = {}
+for character in images.keys():
+	masks[character] = {"up": None, "down": None, "left": None, "right": None, "still": None}
+	for direction in images[character].keys():
+		directory = "assets/characters/" + character + "/" + direction + "/"
+		masks[character][direction] = [pygame.mask.from_surface(image) for image in images[character][direction]]
 #connect to server
 client_socket = socket.socket()
 HOST = '127.0.0.1'
@@ -16,18 +27,21 @@ except socket.error as e:
 	print(str(e))
 
 #game variables
-MAP_WIDTH = 2500
-MAP_HEIGHT = 2500
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = 750
+MAP_WIDTH = 5 * SCREEN_WIDTH
+MAP_HEIGHT = 5 * SCREEN_HEIGHT
 USERNAME = "asdasd"
 
 #colors
 WHITE = (255, 255, 255)
+BACKGROUND = (127, 201, 159)
 BLACK = (0, 0, 0)
 PLAYER_COLOR = (7,135,123)
 
 #classes
 class Player(pygame.sprite.Sprite):
-	def __init__(self, ID, username, location, health, color, radius, speed):
+	def __init__(self, ID, username, location, health, color, radius, speed, character = "sage", direction = "left" ):
 		pygame.sprite.Sprite.__init__(self)
 		self.ID = ID
 		self.username = username
@@ -37,41 +51,89 @@ class Player(pygame.sprite.Sprite):
 		self.time_last_fired = 0
 		self.fire_rate = 5 		#bullets per second
 		self.auto_firing = True	#True if automatic, False if manual
-		self.image = pygame.Surface([2*radius, 2*radius], pygame.SRCALPHA)
-		self.rect = pygame.draw.circle(self.image, color, (radius, radius), radius)
+		self.animation_count = 0
+		self.still = True
+		self.last_moved_left = True
+		self.last_moved_right = False
+		self.character = character
+		self.direction = direction
+		self.image = images[character][direction][0]
+		self.mask = masks[character][direction][0]
+		self.rect = self.image.get_rect()
 		self.rect.center = location
 	def update(self, location, health):
 		self.rect.center = location
 		self.health = health
+	def animate(self):
+		if self.still:
+			if self.last_moved_right and self.direction != "right":
+				self.image = pygame.transform.flip(images[self.character][self.direction][0], True, False)
+				self.mask = pygame.mask.from_surface(self.image)
+			else:
+				self.image = images[self.character][self.direction][0]
+				self.mask = masks[self.character][self.direction][0]
+		else:
+			if self.direction == "left" or self.direction == "right":
+				self.image = images[self.character][self.direction][self.animation_count // 8]
+				self.mask = masks[self.character][self.direction][self.animation_count // 8]
+			else:
+				if self.last_moved_left:
+					self.image = images[self.character][self.direction][self.animation_count // 8]
+					self.mask = masks[self.character][self.direction][self.animation_count // 8]
+				elif self.last_moved_right:
+					self.image = pygame.transform.flip(images[self.character][self.direction][self.animation_count // 8], True, False)
+					self.mask = pygame.mask.from_surface(self.image)
+		
+		self.animation_count = (self.animation_count + 1) % 16
 	def move(self, key_pressed):
 		if key_pressed[pygame.K_RSHIFT] or key_pressed[pygame.K_LSHIFT]:
 			self.speed = 2
 		else:
 			self.speed = 3
+		self.still = True
 		if key_pressed[pygame.K_w] or key_pressed[pygame.K_UP]:
+			self.still = False
+			self.direction = "up"
 			self.rect.move_ip(0, -self.speed)
-			hits = pygame.sprite.spritecollide(self, covers, False)
+			hits = pygame.sprite.spritecollide(self, covers, False, pygame.sprite.collide_mask)
 			if len(hits) != 0:
-				self.rect.move_ip(0, hits[0].rect.bottom - self.rect.top)
+				self.rect.move_ip(0, self.speed)
+				# self.rect.move_ip(0, hits[0].rect.bottom - self.rect.top)
 		if key_pressed[pygame.K_s] or key_pressed[pygame.K_DOWN]:
+			self.still = False
+			self.direction = "down"
 			self.rect.move_ip(0, self.speed)
-			hits = pygame.sprite.spritecollide(self, covers, False)
+			hits = pygame.sprite.spritecollide(self, covers, False, pygame.sprite.collide_mask)
 			if len(hits) != 0:
-				self.rect.move_ip(0, hits[0].rect.top - self.rect.bottom)
+				self.rect.move_ip(0, -self.speed)
+				# self.rect.move_ip(0, hits[0].rect.top - self.rect.bottom)
 		if key_pressed[pygame.K_a] or key_pressed[pygame.K_LEFT]:
+			self.still = False
+			self.last_moved_left = True
+			self.last_moved_right = False
+			self.direction = "left"
 			self.rect.move_ip(-self.speed, 0)
-			hits = pygame.sprite.spritecollide(self, covers, False)
+			hits = pygame.sprite.spritecollide(self, covers, False, pygame.sprite.collide_mask)
 			if len(hits) != 0:
-				self.rect.move_ip(hits[0].rect.right - self.rect.left, 0)
+				self.rect.move_ip(self.speed, 0)
+				# self.rect.move_ip(hits[0].rect.right - self.rect.left, 0)
 		if key_pressed[pygame.K_d] or key_pressed[pygame.K_RIGHT]:
+			self.still = False
+			self.last_moved_right = True
+			self.last_moved_left = False
+			self.direction = "right"
 			self.rect.move_ip(self.speed, 0)
-			hits = pygame.sprite.spritecollide(self, covers, False)
+			hits = pygame.sprite.spritecollide(self, covers, False, pygame.sprite.collide_mask)
 			if len(hits) != 0:
-				self.rect.move_ip(hits[0].rect.left - self.rect.right, 0)
+				self.rect.move_ip(-self.speed, 0)
+				# self.rect.move_ip(hits[0].rect.left - self.rect.right, 0)
+		self.location = self.rect.center
+		self.animate()
 class Cover(pygame.sprite.Sprite):
 	def __init__(self, color, location, width, height):
 		pygame.sprite.Sprite.__init__(self)
 		self.image = pygame.Surface([width, height])
+		self.mask = pygame.mask.from_surface(self.image)
 		self.rect = self.image.get_rect()
 		self.rect.x, self.rect.y = location
 class Bullet(pygame.sprite.Sprite):
@@ -80,9 +142,8 @@ class Bullet(pygame.sprite.Sprite):
 		self.image = pygame.Surface([2*radius, 2*radius], pygame.SRCALPHA)
 		self.rect = pygame.draw.circle(self.image, (127, 127, 127), (radius, radius), radius)
 		self.rect.center = location
-
 #create main display
-screen = pygame.display.set_mode((500, 500))
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Basic Pygame program')
 map_surface = pygame.Surface((MAP_WIDTH, MAP_HEIGHT))
 map_surface = map_surface.convert()
@@ -174,7 +235,7 @@ while not done:
 		if current_time - me.time_last_fired > 1 / me.fire_rate:
 			origin = me.rect.center
 			x, y = pygame.mouse.get_pos()
-			direction = (x - 250, y - 250)
+			direction = (x - SCREEN_WIDTH / 2, y - SCREEN_HEIGHT / 2)
 			client_socket.send(str.encode(str((origin, direction, 10))))
 			me.time_last_fired = current_time
 		else:
@@ -190,14 +251,14 @@ while not done:
 		bullets.add(Bullet(location))
 
 
-	map_surface.fill(WHITE)
+	map_surface.fill(BACKGROUND)
 	covers.draw(map_surface)
 	alive_players.draw(map_surface)
 	bullets.draw(map_surface)
 	left, top = me.rect.center
-	left -= 250
-	top -= 250
-	screen.blit(map_surface, (0, 0), (left, top, 500, 500))
+	left -= SCREEN_WIDTH / 2
+	top -= SCREEN_HEIGHT / 2
+	screen.blit(map_surface, (0, 0), (left, top, SCREEN_WIDTH, SCREEN_HEIGHT))
 	pygame.display.flip()
 	clock.tick(60)
 	players.remove(players_to_remove)

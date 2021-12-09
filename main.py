@@ -7,34 +7,34 @@ pygame.init()
 display = pygame.display.set_mode((800, 600))
 clock = pygame.time.Clock()
 
-player_walk_images = [pygame.image.load("assets/characters/sage-right/sage-right1.png"),
-                      pygame.image.load("assets/characters/sage-right/sage-right2.png"),
-                      pygame.image.load("assets/characters/sage-right/sage-right3.png"),
-                      pygame.image.load("assets/characters/sage-right/sage-right4.png"),
-                      pygame.image.load("assets/characters/sage-right/sage-right5.png"),
-                      pygame.image.load("assets/characters/sage-right/sage-right6.png"),
-                      pygame.image.load("assets/characters/sage-right/sage-right7.png"),
-                      pygame.image.load("assets/characters/sage-right/sage-right8.png")]
+player_walk_images = [pygame.image.load("assets/characters/sage/right/1.png"),
+                      pygame.image.load("assets/characters/sage/right/2.png"),
+                      pygame.image.load("assets/characters/sage/right/3.png"),
+                      pygame.image.load("assets/characters/sage/right/4.png"),
+                      pygame.image.load("assets/characters/sage/right/5.png"),
+                      pygame.image.load("assets/characters/sage/right/6.png"),
+                      pygame.image.load("assets/characters/sage/right/7.png"),
+                      pygame.image.load("assets/characters/sage/right/8.png")]
 
-player_walkup_images = [pygame.image.load("assets/characters/sage-back/sage-back1.png"),
-                          pygame.image.load("assets/characters/sage-back/sage-back2.png"),
-                          pygame.image.load("assets/characters/sage-back/sage-back3.png"),
-                          pygame.image.load("assets/characters/sage-back/sage-back4.png"),
-                          pygame.image.load("assets/characters/sage-back/sage-back5.png"),
-                          pygame.image.load("assets/characters/sage-back/sage-back6.png"),
-                          pygame.image.load("assets/characters/sage-back/sage-back7.png"),
-                          pygame.image.load("assets/characters/sage-back/sage-back8.png")]
+player_walkup_images = [pygame.image.load("assets/characters/sage/up/1.png"),
+                        pygame.image.load("assets/characters/sage/up/2.png"),
+                        pygame.image.load("assets/characters/sage/up/3.png"),
+                        pygame.image.load("assets/characters/sage/up/4.png"),
+                        pygame.image.load("assets/characters/sage/up/5.png"),
+                        pygame.image.load("assets/characters/sage/up/6.png"),
+                        pygame.image.load("assets/characters/sage/up/7.png"),
+                        pygame.image.load("assets/characters/sage/up/8.png")]
 
-player_walkdown_images = [pygame.image.load("assets/characters/sage-front/sage-front1.png"),
-                          pygame.image.load("assets/characters/sage-front/sage-front2.png"),
-                          pygame.image.load("assets/characters/sage-front/sage-front3.png"),
-                          pygame.image.load("assets/characters/sage-front/sage-front4.png"),
-                          pygame.image.load("assets/characters/sage-front/sage-front5.png"),
-                          pygame.image.load("assets/characters/sage-front/sage-front6.png"),
-                          pygame.image.load("assets/characters/sage-front/sage-front7.png"),
-                          pygame.image.load("assets/characters/sage-front/sage-front8.png")]
+player_walkdown_images = [pygame.image.load("assets/characters/sage/down/1.png"),
+                          pygame.image.load("assets/characters/sage/down/2.png"),
+                          pygame.image.load("assets/characters/sage/down/3.png"),
+                          pygame.image.load("assets/characters/sage/down/4.png"),
+                          pygame.image.load("assets/characters/sage/down/5.png"),
+                          pygame.image.load("assets/characters/sage/down/6.png"),
+                          pygame.image.load("assets/characters/sage/down/7.png"),
+                          pygame.image.load("assets/characters/sage/down/8.png")]
 
-player_stationary_image = [pygame.image.load("assets/characters/sage-front/sage-front1.png")]
+player_stationary_image = [pygame.image.load("assets/characters/sage/down/1.png")]
 
 player_weapon = pygame.transform.scale(pygame.image.load("assets/gun/smg.png"), (128, 64)).convert()
 player_weapon.set_colorkey((0, 0, 0)) # convert to transparent background
