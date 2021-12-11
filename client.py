@@ -6,7 +6,7 @@ from pygame.locals import *
 
 images = {"sage": None}
 for character in images.keys():
-	images[character] = {"up": None, "down": None, "left": None, "right": None, "still": None}
+	images[character] = {"up": None, "down": None, "left": None, "right": None}
 	for direction in images[character].keys():
 		directory = "assets/characters/" + character + "/" + direction + "/"
 		images[character][direction] = [pygame.image.load(directory + str(i) + ".png") for i in range(1, 9)]
@@ -48,9 +48,10 @@ class Player(pygame.sprite.Sprite):
 		self.radius = radius
 		self.health = health
 		self.speed = speed
+		self.gun = Gun(30, 10, 10, 2000)
 		self.time_last_fired = 0
-		self.fire_rate = 5 		#bullets per second
-		self.auto_firing = True	#True if automatic, False if manual
+		self.ammo = 1000
+		self.reloading = False
 		self.animation_count = 0
 		self.still = True
 		self.last_moved_left = True
@@ -59,11 +60,14 @@ class Player(pygame.sprite.Sprite):
 		self.direction = direction
 		self.image = images[character][direction][0]
 		self.mask = masks[character][direction][0]
-		self.rect = self.image.get_rect()
-		self.rect.center = location
+		self.rect = self.image.get_rect(center = location)
+		self.location = location
+
 	def update(self, location, health):
+		self.location = location
 		self.rect.center = location
 		self.health = health
+
 	def animate(self):
 		if self.still:
 			if self.last_moved_right and self.direction != "right":
@@ -85,6 +89,7 @@ class Player(pygame.sprite.Sprite):
 					self.mask = pygame.mask.from_surface(self.image)
 		
 		self.animation_count = (self.animation_count + 1) % 16
+
 	def move(self, key_pressed):
 		if key_pressed[pygame.K_RSHIFT] or key_pressed[pygame.K_LSHIFT]:
 			self.speed = 2
@@ -129,6 +134,33 @@ class Player(pygame.sprite.Sprite):
 				# self.rect.move_ip(hits[0].rect.left - self.rect.right, 0)
 		self.location = self.rect.center
 		self.animate()
+
+	def reload(self):
+		if self.ammo > self.gun.clip_size - self.gun.ammo:
+			self.ammo -= self.gun.clip_size- self.gun.ammo
+			self.gun.ammo += self.gun.clip_size - self.gun.ammo
+		else:
+			self.gun.ammo += self.ammo
+			self.ammo = 0
+		self.reloading = False
+
+	def fire(self):
+		current_time = time.time()
+		if not self.reloading:
+			if self.gun.ammo > 0:
+				if current_time - self.time_last_fired > 1 / self.gun.fire_rate:
+					self.time_last_fired = current_time
+					self.gun.ammo -= 1
+					origin = self.location
+					x, y = pygame.mouse.get_pos()
+					direction = (x - SCREEN_WIDTH / 2, y - SCREEN_HEIGHT / 2)
+					return (origin, direction, self.gun.bullet_speed)
+			else:
+				if self.ammo > 0:
+					self.reloading = True
+					pygame.time.set_timer(RELOAD, self.gun.reload_time, loops = 1)
+		return " "
+
 class Cover(pygame.sprite.Sprite):
 	def __init__(self, color, location, width, height):
 		pygame.sprite.Sprite.__init__(self)
@@ -137,11 +169,22 @@ class Cover(pygame.sprite.Sprite):
 		self.rect = self.image.get_rect()
 		self.rect.x, self.rect.y = location
 class Bullet(pygame.sprite.Sprite):
-	def __init__(self, location, radius = 3):
+	def __init__(self, location, radius = 4):
 		pygame.sprite.Sprite.__init__(self)
 		self.image = pygame.Surface([2*radius, 2*radius], pygame.SRCALPHA)
 		self.rect = pygame.draw.circle(self.image, (127, 127, 127), (radius, radius), radius)
 		self.rect.center = location
+class Gun(pygame.sprite.Sprite):
+	def __init__(self, clip_size, fire_rate, bullet_speed, reload_time, full_auto = True):
+		pygame.sprite.Sprite.__init__(self)
+		self.ammo = clip_size
+		self.clip_size = clip_size
+		self.fire_rate = fire_rate
+		self.reload_time = reload_time
+		self.bullet_speed = bullet_speed
+		self.full_auto = full_auto
+	# def animate():
+
 #create main display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Basic Pygame program')
@@ -189,22 +232,40 @@ for ID, values in other_players.items():
 pygame.init()
 clock = pygame.time.Clock()
 
+#Pygame events
+RELOAD = pygame.USEREVENT + 0
+
+#Pygame fonts for texts
+stats_font = pygame.font.SysFont("monospace", 30, bold = True)
+reloading_font = pygame.font.SysFont("monospace", 15)
+username_font = pygame.font.SysFont("monospace", 15)
+
 #main loop
 key_pressed = {pygame.K_w: False, pygame.K_UP: False, pygame.K_s: False, pygame.K_DOWN: False, pygame.K_d: False, pygame.K_RIGHT: False, pygame.K_a: False, pygame.K_LEFT: False, K_RSHIFT: False, K_LSHIFT: False}
 mouse_pressed = {1: False, 2: False, 3: False, 4: False, 5: False}
 done = False
 while not done:
+	map_surface.fill(BACKGROUND)
+	if me.health <= 0:
+		done = True
+		continue
 	for event in pygame.event.get():
 		if event.type == QUIT:
 			done = True
-		if event.type == KEYDOWN and event.key in key_pressed.keys():
-			key_pressed[event.key] = True
+		if event.type == KEYDOWN:
+			if event.key in key_pressed.keys():
+				key_pressed[event.key] = True
+			if event.key == pygame.K_r and not me.reloading:
+				me.reloading = True
+				pygame.time.set_timer(RELOAD, me.gun.reload_time, loops = 1)
 		if event.type == KEYUP and event.key in key_pressed.keys():
 			key_pressed[event.key] = False
 		if event.type == MOUSEBUTTONDOWN:
 			mouse_pressed[event.button] = True
 		if event.type == MOUSEBUTTONUP:
 			mouse_pressed[event.button] = False
+		if event.type == RELOAD:
+			me.reload()
 	me.move(key_pressed)
 	client_socket.send(str.encode(str(me.rect.center)))
 
@@ -221,6 +282,11 @@ while not done:
 		if player.health <= 0:
 			alive_players.remove(player)
 			dead_players.add(player)
+		else:
+			username_display = username_font.render(player.username, 1, BLACK)
+			x, y = player.location
+			map_surface.blit(username_display, (x - username_display.get_width() / 2, y - player.image.get_height() / 2 - username_display.get_height() / 2 - 5))
+
 	#create Player objects for players who just joined
 	if len(players.sprites()) != len(players_info):
 		new_players = [ID for ID in IDs if ID not in [player.ID for player in players.sprites()]]
@@ -231,17 +297,9 @@ while not done:
 
 	#send bullet information to server
 	if mouse_pressed[1] == True:
-		current_time = time.time()
-		if current_time - me.time_last_fired > 1 / me.fire_rate:
-			origin = me.rect.center
-			x, y = pygame.mouse.get_pos()
-			direction = (x - SCREEN_WIDTH / 2, y - SCREEN_HEIGHT / 2)
-			client_socket.send(str.encode(str((origin, direction, 10))))
-			me.time_last_fired = current_time
-		else:
-			client_socket.send(str.encode("empty"))
+		client_socket.send(str.encode(str(me.fire())))
 	else:
-		client_socket.send(str.encode("empty"))
+		client_socket.send(str.encode(" "))
 
 	#receive bullet locations
 	bullets = pygame.sprite.Group()
@@ -250,8 +308,6 @@ while not done:
 	for location in bullets_location:
 		bullets.add(Bullet(location))
 
-
-	map_surface.fill(BACKGROUND)
 	covers.draw(map_surface)
 	alive_players.draw(map_surface)
 	bullets.draw(map_surface)
@@ -259,16 +315,17 @@ while not done:
 	left -= SCREEN_WIDTH / 2
 	top -= SCREEN_HEIGHT / 2
 	screen.blit(map_surface, (0, 0), (left, top, SCREEN_WIDTH, SCREEN_HEIGHT))
+
+	ammo_display = stats_font.render(str(me.gun.ammo) + "\\" + str(me.ammo), 1, BLACK)
+	screen.blit(ammo_display, (SCREEN_WIDTH - ammo_display.get_width() - 25, SCREEN_HEIGHT - ammo_display.get_height() - 25))
+	health_display = stats_font.render(str(me.health), 1, BLACK)
+	screen.blit(health_display, (25, SCREEN_HEIGHT - ammo_display.get_height() - 25))
+	if me.reloading:
+		reloading_display = reloading_font.render("Reloading", 1, BLACK)
+		screen.blit(reloading_display, (SCREEN_WIDTH / 2 - reloading_display.get_width() / 2, SCREEN_HEIGHT / 2 + me.rect.height / 2))
 	pygame.display.flip()
 	clock.tick(60)
 	players.remove(players_to_remove)
-	if me.health <= 0:
-		done = True
-		continue
-	# Input = input('Say Something: ')
-	# client_socket.send(str.encode(Input))
-	# Response = client_socket.recv(1024)
-	# print(Response.decode('utf-8'))
 print("Thanks for playing!")
 client_socket.close()
 pygame.quit()

@@ -32,8 +32,8 @@ class Cover(pygame.sprite.Sprite):
 class Bullet(pygame.sprite.Sprite):
 	def __init__(self, origin, direction, magnitude):
 		pygame.sprite.Sprite.__init__(self)
-		self.image = pygame.Surface([2*3, 2*3], pygame.SRCALPHA)
-		self.rect = pygame.draw.circle(self.image, (127, 127, 127), (3, 3), 3)
+		self.image = pygame.Surface([2*4, 2*4], pygame.SRCALPHA)
+		self.rect = pygame.draw.circle(self.image, (127, 127, 127), (4, 4), 4)
 		self.damage = 10
 		o_x, o_y = origin
 		x, y = direction
@@ -115,7 +115,7 @@ def threaded_client(connection):
 		connection.send(str.encode(str(data)))
 		bullets.update()
 		bullet = connection.recv(1024)
-		if bullet.decode('utf-8') != "empty":
+		if bullet.decode('utf-8') != " ":
 			origin, direction, magnitude = eval(bullet.decode('utf-8'))
 			bullets.add(Bullet(origin, direction, magnitude))
 		connection.send(str.encode(str([bullet.location for bullet in bullets])))
