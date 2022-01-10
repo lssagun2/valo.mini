@@ -28,15 +28,15 @@ class MainMenu(Menu):
         self.quitx, self.quity = self.mid_w, self.mid_h + 220
         self.cursor_rect.midtop = (self.startx + self.offset, self.starty)
         self.background = pygame.image.load('assets/background/titlescreen-fullscreen.png')
+        self.game.introductory_video()
 
     def display_menu(self):
         self.run_display = True
         while self.run_display:
             self.game.check_events()
             self.check_input()
-            # self.game.display.fill(self.game.BLACK)
             self.game.display.blit(self.background, (0, 0))
-            self.game.draw_text_white('Main Menu', 60, self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2 - 100)
+            self.game.draw_text_white('VALORANT MINI', 60, self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2 - 100)
             self.game.draw_text_white('Start Game', 40, self.startx, self.starty)
             self.game.draw_text_white('Options', 40, self.optionsx, self.optionsy)
             self.game.draw_text_white('Credits', 40, self.creditsx, self.creditsy)
@@ -81,7 +81,11 @@ class MainMenu(Menu):
                 self.game.curr_menu = self.game.options
             elif self.state == 'Credits':
                 self.game.curr_menu = self.game.credits
+            elif self.state == 'Quit':
+                pygame.quit()
+                exit()
             self.run_display = False
+
 
 class OptionsMenu(Menu):
     def __init__(self, game):

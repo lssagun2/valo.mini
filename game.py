@@ -1,12 +1,15 @@
+import cv2
 import pygame, sys
 from menu import *
+from pygame import mixer
+
 
 class Game():
     def __init__(self):
         pygame.init()
         self.running, self.playing = True, False
         self.UP_KEY, self.DOWN_KEY, self.LEFT_KEY, self.RIGHT_KEY, self.START_KEY, self.BACK_KEY = False, False, False, False, False, False
-        self.DISPLAY_W, self.DISPLAY_H = 1920, 1020
+        self.DISPLAY_W, self.DISPLAY_H = 1920, 1080
         self.display = pygame.Surface((self.DISPLAY_W, self.DISPLAY_H))
         self.window = pygame.display.set_mode(((self.DISPLAY_W, self.DISPLAY_H)))
         self.font_name = 'assets/font/8-BIT WONDER.TTF'
@@ -26,12 +29,45 @@ class Game():
             if self.START_KEY:
                 self.playing = False
             self.display.fill(self.BLACK)
-            # self.display.blit(self.background, (0, 0))
             self.display.blit(self.background, (0, 0))
             self.draw_text('Thanks for Playing', 40, self.DISPLAY_W / 2, self.DISPLAY_H / 2)
             self.window.blit(self.display, (0, 0))
             pygame.display.update()
             self.reset_keys()
+
+    def introductory_video(self):
+        pygame.display.set_caption('Valo.mini')
+        pygame.display.set_icon(self.logo)
+        mixer.pre_init(44100, -16, 1, 24000)
+        mixer.quit()
+        mixer.init()
+        video = cv2.VideoCapture("assets/intro/introduction.wmv")
+        success, video_image = video.read()
+        fps = video.get(cv2.CAP_PROP_FPS)
+        sound = mixer.Sound("assets/intro/intro.wav")
+        mixer.music.load("assets/intro/intro.wav")
+        mixer.music.play(1)
+
+        window = pygame.display.set_mode(video_image.shape[1::-1])
+        clock = pygame.time.Clock()
+
+        run = success
+        while run:
+            clock.tick(fps)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run = False
+
+            success, video_image = video.read()
+            if success:
+                mixer.Sound.play(sound)
+                video_surf = pygame.image.frombuffer(
+                    video_image.tobytes(), video_image.shape[1::-1], "BGR")
+                mixer.music.stop()
+            else:
+                run = False
+            window.blit(video_surf, (0, 0))
+            pygame.display.flip()
 
     def check_events(self):
         for event in pygame.event.get():
