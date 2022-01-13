@@ -55,9 +55,9 @@ class Bullet(pygame.sprite.Sprite):
 		covers_hit = pygame.sprite.spritecollide(self, covers, False)
 		if len(covers_hit) != 0:
 			self.kill()
-MAP_WIDTH = 5000
-MAP_HEIGHT = 3750
-covers_count = 100
+MAP_WIDTH = 1920 + 500
+MAP_HEIGHT = 1920 + 500
+covers_count = 0
 
 ServerSocket = socket.socket()
 host = '127.0.0.1'
@@ -74,7 +74,7 @@ covers.add(Cover(0, 0, MAP_WIDTH, 250))
 covers.add(Cover(0, MAP_HEIGHT - 250, MAP_WIDTH, 250))
 covers.add(Cover(0, 0, 250, MAP_HEIGHT))
 covers.add(Cover(MAP_WIDTH - 250, 0, 250, MAP_HEIGHT))
-for i in range(100):
+for i in range(covers_count):
 	cover = Cover(random.uniform(0, MAP_WIDTH), random.uniform(0, MAP_HEIGHT), random.uniform(40, 80), random.uniform(40, 80))
 	while True:
 		if not pygame.sprite.spritecollide(cover, covers, False): break
