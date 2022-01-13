@@ -94,7 +94,7 @@ class Bullet(pygame.sprite.Sprite):
 	def __init__(self, location, radius = 3):
 		pygame.sprite.Sprite.__init__(self)
 		self.image = pygame.Surface([2*radius, 2*radius], pygame.SRCALPHA)
-		self.rect = pygame.draw.circle(self.image, (127, 127, 127), (radius, radius), radius)
+		self.rect = pygame.draw.circle(self.image, (0, 0, 0), (radius, radius), radius)
 		self.rect.center = location
 class Gun(pygame.sprite.Sprite):
 	def __init__(self, clip_size, fire_rate, bullet_speed, reload_time, full_auto = True):
