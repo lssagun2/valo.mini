@@ -1,24 +1,27 @@
 import pygame
 import time
 import math
+from variables import *
 from pygame.locals import *
 
-#global variables
-BACKGROUND = pygame.image.load("assets/background/map.png")
-MAP_WIDTH = BACKGROUND.get_height() + 500
-MAP_HEIGHT = BACKGROUND.get_width() + 500
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 750
+#initialize Pygame
+pygame.init()
+clock = pygame.time.Clock()
 
-#pygame custom events
-RELOAD = pygame.USEREVENT + 0
+#create main display
+screen = pygame.display.set_mode((DISPLAY_WIDTH, DISPLAY_HEIGHT))
+pygame.display.set_caption('Valo.mini')
+display_surface = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
+display_surface = display_surface.convert()
+MAP.convert()
 
+#load images into dictionaries
 images = {"character1": None, "character2": None}
 for character in images.keys():
 	images[character] = {"walking": None, "ranged": None};
 	for state in images[character].keys():
 		directory = "assets/characters/" + character + "/" + state + "/"
-		images[character][state] = [pygame.transform.scale(pygame.image.load(directory + str(i) + ".png"), (100, 100)) for i in range(1, 5)]
+		images[character][state] = [pygame.image.load(directory + str(i) + ".png") for i in range(1, 5)]
 
 class Player(pygame.sprite.Sprite):
 	def __init__(self, ID, username, location, health, speed, character = "character2", state = "walking"):
@@ -47,7 +50,7 @@ class Player(pygame.sprite.Sprite):
 
 	def animate(self, mouse_position):
 		x, y = mouse_position
-		angle = (180 / math.pi) * (-math.atan2(y - SCREEN_HEIGHT/2, x - SCREEN_WIDTH/2))
+		angle = (180 / math.pi) * (-math.atan2(y - DISPLAY_HEIGHT/2, x - DISPLAY_WIDTH/2))
 		if self.still:
 			self.image = pygame.transform.rotate(images[self.character][self.state][0], angle)
 		else:
@@ -75,7 +78,7 @@ class Player(pygame.sprite.Sprite):
 					self.gun.ammo -= 1
 					origin = self.location
 					x, y = pygame.mouse.get_pos()
-					direction = (x - SCREEN_WIDTH / 2, y - SCREEN_HEIGHT / 2)
+					direction = (x - DISPLAY_WIDTH / 2, y - DISPLAY_HEIGHT / 2)
 					return (origin, direction, self.gun.bullet_speed)
 			else:
 				if self.ammo > 0:
@@ -84,7 +87,7 @@ class Player(pygame.sprite.Sprite):
 		return " "
 
 class Cover(pygame.sprite.Sprite):
-	def __init__(self, color, location, width, height):
+	def __init__(self, location, width, height):
 		pygame.sprite.Sprite.__init__(self)
 		self.image = pygame.Surface([width, height])
 		self.mask = pygame.mask.from_surface(self.image)
