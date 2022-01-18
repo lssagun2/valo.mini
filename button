@@ -1,0 +1,53 @@
+from variables import *
+import pygame, cv2, sys
+from pygame.locals import *
+from pygame import mixer
+from game import *
+
+surface = pygame.display.set_mode((DISPLAY_WIDTH, DISPLAY_HEIGHT))
+
+char_style1 = pygame.image.load('assets/characters/character1/walking1.png').convert_alpha()
+char_style2 = pygame.image.load('assets/characters/character2/walking1.png').convert_alpha()
+char_style3 = pygame.image.load('assets/characters/character3/walking1.png').convert_alpha()
+
+class Button:
+    def __init__(self, x, y, image, scale):
+        width = image.get_width()
+        height = image.get_height()
+        self.image = pygame.transform.scale(image, (int(width * scale), int(height * scale)))
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.clicked = False
+
+    def draw(self):
+        action = False
+        pos = pygame.mouse.get_pos()
+
+        if self.rect.collidepoint(pos):
+            if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
+                self.clicked = True
+                action = True
+        if pygame.mouse.get_pressed()[0] == 0:
+            self.clicked == False
+
+        surface.blit(self.image, (self.rect.x, self.rect.y))
+
+        return action
+
+character1 = Button(-150, 30, char_style1, 3)
+character2 = Button(300, 10, char_style2, 3)
+character3 = Button(700, -10, char_style3, 3)
+
+run = True
+while run:
+    if character1.draw() == True:
+        print('You chose Character 1')
+    elif character2.draw() == True:
+        print('You chose Character 2')
+    elif character3.draw() == True:
+        print('You chose Character 3')
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+    pygame.display.update()
+pygame.quit()
