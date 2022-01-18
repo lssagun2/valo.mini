@@ -1,106 +1,188 @@
-import cv2
-import pygame, sys
+import socket
+import pygame
+import time
+import math
+from pygame.locals import *
+from entities import *
 from menu import *
-from pygame import mixer
+
+def draw_group(group, center, surface):
+	c_x, c_y = center
+	for sprite in group:
+		if abs(c_x - sprite.rect.left) > DISPLAY_WIDTH and abs(c_x - sprite.rect.right) > DISPLAY_WIDTH:
+			continue
+		if abs(c_y - sprite.rect.top) > DISPLAY_HEIGHT and abs(c_y - sprite.rect.bottom) > DISPLAY_HEIGHT:
+			continue
+		left, top =  (sprite.rect.x - c_x) + DISPLAY_WIDTH / 2, (sprite.rect.y - c_y) + DISPLAY_HEIGHT / 2
+		surface.blit(sprite.image, (left, top))
+		if hasattr(sprite, 'username'):
+			username_display = username_font.render(sprite.username, 1, BLACK)
+			x, y = sprite.rect.center
+			left, top =  (x - c_x) + DISPLAY_WIDTH / 2 - username_display.get_width() / 2, (y - c_y) + DISPLAY_HEIGHT / 2 - username_display.get_height() / 2 - 35
+			surface.blit(username_display, (left, top))
+
+def game(username):
+	client_socket = socket.socket()
+	HOST = '127.0.0.1'
+	PORT = 1233
+	print('Waiting for connection')
+	try:
+		client_socket.connect((HOST, PORT))
+	except socket.error as e:
+		print(str(e))
+
+	#receive data about covers from server and create Cover objects
+	covers_data = client_socket.recv(8192)
+	covers_data = eval(covers_data.decode('utf-8'))
+	covers = pygame.sprite.Group()
+	for cover_data in covers_data:
+		location, width, height = cover_data
+		cover = Cover(location, width, height)
+		covers.add(cover)
+
+	#communicate with server about player information (id and initial location) of this client
+	my_username = username
+	client_socket.send(str.encode(my_username))
+	my_info = client_socket.recv(2048)
+	my_info = eval(my_info.decode('utf-8'))
+	my_id, my_location, my_health = my_info
+	client_socket.send(str.encode("received"))
+
+	#create Player object for this client
+	mixer.music.load("assets/background/music/game_bg.mp3")
+	mixer.music.play(-1)
+
+	players = pygame.sprite.Group()
+	alive_players = pygame.sprite.Group()
+	dead_players = pygame.sprite.Group()
+	me = Player(my_id, my_username, my_location, my_health, 5)
+	players.add(me)
+	alive_players.add(me)
+
+	#get other information players
+	other_players = client_socket.recv(8192)
+	other_players = eval(other_players.decode('utf-8'))
+
+	#create Player objects for other players
+	for ID, values in other_players.items():
+		if ID == me.ID:
+			continue
+		username, location, health = values
+		players.add(Player(ID, username, location, health, 5))
+		alive_players.add(Player(ID, username, location, health, 5))
+	done = False
+	while not done:
+		if me.health <= 0:
+			done = True
+			continue
+
+		for event in pygame.event.get():
+			if event.type == QUIT:
+				exit()
+			if event.type == KEYDOWN:
+				if event.key in key_pressed.keys():
+					key_pressed[event.key] = True
+				if event.key == pygame.K_r and not me.reloading:
+					me.reloading = True
+					pygame.time.set_timer(RELOAD, me.gun.reload_time, loops = 1)
+			if event.type == KEYUP and event.key in key_pressed.keys():
+				key_pressed[event.key] = False
+			if event.type == MOUSEBUTTONDOWN:
+				bullet_fire = mixer.Sound('assets/background/music/submachine-gun.mp3')
+				bullet_fire.play()
+				mouse_pressed[event.button] = True
+			if event.type == MOUSEBUTTONUP:
+				mouse_pressed[event.button] = False
+			if event.type == RELOAD:
+				bullet_reload = mixer.Sound('assets/background/music/reload.mp3')
+				bullet_reload.play()
+				me.reload()
+
+		#move player
+		me.still = True
+		x, y = 0, 0
+		speed = me.speed
+		if (key_pressed[pygame.K_w] or key_pressed[pygame.K_UP] or key_pressed[pygame.K_s] or key_pressed[pygame.K_DOWN]) and (key_pressed[pygame.K_a] or key_pressed[pygame.K_LEFT] or key_pressed[pygame.K_d] or key_pressed[pygame.K_RIGHT]):
+			speed = math.ceil(speed / math.sqrt(2))
+		if key_pressed[pygame.K_RSHIFT] or key_pressed[pygame.K_LSHIFT]:
+			speed = math.ceil(speed / 2)
+		if key_pressed[pygame.K_w] or key_pressed[pygame.K_UP]:
+			me.still = False
+			y = -speed
+		if key_pressed[pygame.K_s] or key_pressed[pygame.K_DOWN]:
+			me.still = False
+			y = speed
+		if key_pressed[pygame.K_a] or key_pressed[pygame.K_LEFT]:
+			me.still = False
+			x = -speed
+		if key_pressed[pygame.K_d] or key_pressed[pygame.K_RIGHT]:
+			me.still = False
+			x = speed
+		me.rect.move_ip(x, y)
+
+		#handle collisions
+		hits = pygame.sprite.spritecollide(me, covers, False, pygame.sprite.collide_mask)
+		if len(hits) != 0:
+			me.rect.move_ip(-x, -y)
+		me.location = me.rect.center
+		me.animate(pygame.mouse.get_pos())
+
+		#send this player's location to the server
+		client_socket.send(str.encode(str(me.location)))
+
+		#update other players' location
+		players_info = client_socket.recv(8192)
+		players_info = eval(players_info.decode('utf-8'))
+		IDs = list(players_info.keys())
+		values = list(players_info.values())
+		usernames, locations, healths = list(zip(*values))
+		locations = dict(zip(IDs, locations))
+		players_to_remove = []
+		for player in alive_players.sprites():
+			player.update(locations[player.ID], healths[player.ID])
+			if player.health <= 0:
+				alive_players.remove(player)
+				dead_players.add(player)
+
+		#create Player objects for players who just joined
+		if len(players.sprites()) != len(players_info):
+			new_players = [ID for ID in IDs if ID not in [player.ID for player in players.sprites()]]
+			for ID in new_players:
+				username, location, health = players_info[ID]
+				players.add(Player(ID, username, location, health, 5))
+				alive_players.add(Player(ID, username, location, health, 5))
+
+		#send bullet information to server
+		if mouse_pressed[1] == True:
+			client_socket.send(str.encode(str(me.fire())))
+		else:
+			client_socket.send(str.encode(" "))
+
+		#receive bullet locations
+		bullets = pygame.sprite.Group()
+		bullets_location = client_socket.recv(16384)
+		bullets_location = eval(bullets_location.decode('utf-8'))
+		for location in bullets_location:
+			bullets.add(Bullet(location))
 
 
-class Game():
-    def __init__(self):
-        pygame.init()
-        self.running, self.playing = True, False
-        self.UP_KEY, self.DOWN_KEY, self.LEFT_KEY, self.RIGHT_KEY, self.START_KEY, self.BACK_KEY = False, False, False, False, False, False
-        self.DISPLAY_W, self.DISPLAY_H = 1920, 1080
-        self.display = pygame.Surface((self.DISPLAY_W, self.DISPLAY_H))
-        self.window = pygame.display.set_mode(((self.DISPLAY_W, self.DISPLAY_H)))
-        self.font_name = 'assets/font/8-BIT WONDER.TTF'
-        self.background = pygame.image.load('assets/background/endtitle-fullscreen.png')
-        self.logo = pygame.image.load('assets/logo/valo.png')
-        self.RED, self.BLACK, self.WHITE = (255, 51, 51), (0, 0, 0), (255, 255, 255)
-        self.main_menu = MainMenu(self)
-        self.options = OptionsMenu(self)
-        self.credits = CreditsMenu(self)
-        self.curr_menu = self.main_menu
-        pygame.display.set_caption('Valo.mini')
-        pygame.display.set_icon(self.logo)
+		left, top = me.rect.center
+		left -= DISPLAY_WIDTH / 2
+		top -= DISPLAY_HEIGHT / 2
+		display_surface.blit(MAP, (0, 0), (left, top, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+		draw_group(covers, me.rect.center, display_surface)
+		draw_group(alive_players, me.rect.center, display_surface)
+		draw_group(bullets, me.rect.center, display_surface)
+		screen.blit(display_surface, (0, 0))
 
-    def game_loop(self):
-        while self.playing:
-            self.check_events()
-            if self.START_KEY:
-                self.playing = False
-            self.display.fill(self.BLACK)
-            self.display.blit(self.background, (0, 0))
-            self.draw_text('Thanks for Playing', 40, self.DISPLAY_W / 2, self.DISPLAY_H / 2)
-            self.window.blit(self.display, (0, 0))
-            pygame.display.update()
-            self.reset_keys()
-
-    def introductory_video(self):
-        pygame.display.set_caption('Valo.mini')
-        pygame.display.set_icon(self.logo)
-        mixer.pre_init(44100, -16, 1, 24000)
-        mixer.quit()
-        mixer.init()
-        video = cv2.VideoCapture("assets/intro/introduction.wmv")
-        success, video_image = video.read()
-        fps = video.get(cv2.CAP_PROP_FPS)
-        sound = mixer.Sound("assets/intro/intro.wav")
-        mixer.music.load("assets/intro/intro.wav")
-        mixer.music.play(1)
-
-        window = pygame.display.set_mode(video_image.shape[1::-1])
-        clock = pygame.time.Clock()
-
-        run = success
-        while run:
-            clock.tick(fps)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    run = False
-
-            success, video_image = video.read()
-            if success:
-                mixer.Sound.play(sound)
-                video_surf = pygame.image.frombuffer(
-                    video_image.tobytes(), video_image.shape[1::-1], "BGR")
-                mixer.music.stop()
-            else:
-                run = False
-            window.blit(video_surf, (0, 0))
-            pygame.display.flip()
-
-    def check_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running, self.playing = False, False
-                self.curr_menu.run_display = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    self.START_KEY = True
-                if event.key == pygame.K_BACKSPACE:
-                    self.BACK_KEY = True
-                if event.key == pygame.K_s:
-                    self.DOWN_KEY = True
-                if event.key == pygame.K_w:
-                    self.UP_KEY = True
-                if event.key == pygame.K_a:
-                    self.LEFT_KEY = True
-                if event.key == pygame.K_d:
-                    self.RIGHT_KEY = True
-
-    def reset_keys(self):
-        self.UP_KEY, self.DOWN_KEY, self.LEFT_KEY, self.RIGHT_KEY, self.START_KEY, self.BACK_KEY = False, False, False, False, False, False
-
-    def draw_text(self, text, size, x, y):
-        font = pygame.font.Font(self.font_name, size)
-        text_surface = font.render(text, True, self.RED)
-        text_rect = text_surface.get_rect()
-        text_rect.center = (x, y)
-        self.display.blit(text_surface, text_rect)
-
-    def draw_text_white(self, text, size, x, y):
-        font = pygame.font.Font(self.font_name, size)
-        text_surface = font.render(text, True, self.WHITE)
-        text_rect = text_surface.get_rect()
-        text_rect.center = (x, y)
-        self.display.blit(text_surface, text_rect)
+		ammo_display = stats_font.render(str(me.gun.ammo) + "|" + str(me.ammo), 1, BLACK)
+		screen.blit(ammo_display, (DISPLAY_WIDTH - ammo_display.get_width() - 25, DISPLAY_HEIGHT - ammo_display.get_height() - 25))
+		health_display = stats_font.render(str(me.health), 1, BLACK)
+		screen.blit(health_display, (25, DISPLAY_HEIGHT - ammo_display.get_height() - 25))
+		if me.reloading:
+			reloading_display = reloading_font.render("Reloading", 1, BLACK)
+			screen.blit(reloading_display, (DISPLAY_WIDTH / 2 - reloading_display.get_width() / 2, DISPLAY_HEIGHT / 2 + reloading_display.get_height() / 2 + 30))
+		pygame.display.flip()
+		clock.tick(60)
+		players.remove(players_to_remove)
+	end_display(screen)
