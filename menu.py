@@ -1,143 +1,179 @@
-import pygame
+from variables import *
+import pygame, cv2, sys
+from pygame.locals import *
+from pygame import mixer
+from game import *
 
+def draw_text(surface, font, text, location, color):
+	# font = pygame.font.Font(font_name, size)
+	text_surface = font.render(text, True, color)
+	text_rect = text_surface.get_rect()
+	text_rect.center = location
+	surface.blit(text_surface, text_rect)
 
-class Menu():
+def main_menu(surface):
+	mixer.music.load("assets/background/music/game_bg.mp3")
+	mixer.music.play(0)
+	options = [('Start Game', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 30), request_username), ('Credits', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 80), credits), ('Quit', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 200))]
+	selected = 0
+	exit = False
+	while not exit:
+		for event in pygame.event.get():
+			if event.type == QUIT:
+				exit()
+			if event.type == KEYDOWN:
+				if event.key == pygame.K_RETURN:
+					options[selected][2](surface)
+				if event.key == pygame.K_w or event.key == pygame.K_UP:
+					selected = (selected - 1) % 4
+				if event.key == pygame.K_s or event.key == pygame.K_DOWN:
+					selected = (selected + 1) % 4
+		surface.blit(MENU_BACKGROUND, (0, 0))
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 60)
+		draw_text(surface, font, 'VALORANT MINI', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 - 100), WHITE)
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 40)
+		for option in options:
+			draw_text(surface, font, option[0], option[1], WHITE)
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 30)
+		draw_text(surface, font, '*', (options[selected][1][0] - 230, options[selected][1][1]), WHITE)
+		pygame.display.flip()
+	mixer.music.stop()
 
-    def __init__(self, game):
-        self.game = game
-        self.mid_w, self.mid_h = self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2
-        self.run_display = True
-        self.cursor_rect = pygame.Rect(0, 0, 20, 20)
-        self.offset = - 230
+def request_username(surface):
+	submitted = False
+	username = ""
+	while not submitted:
+		for event in pygame.event.get():
+			if event.type == QUIT:
+				exit()
+			if event.type == KEYDOWN:
+				if event.key == pygame.K_RETURN:
+					game(username)
+				elif event.key == pygame.K_BACKSPACE:
+					username = username[0:-1]
+				elif event.key == K_MINUS:
+					username = username + "_"
+				elif event.key <= 127:
+					username = username + chr(event.key)
+		surface.blit(MENU_BACKGROUND, (0, 0))
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 60)
+		draw_text(surface, font, 'Input Username', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 - 100), WHITE)
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 40)
+		draw_text(surface, font, username, (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 30), WHITE)
+		pygame.display.flip()
+# def character_style(surface):
+# 	char_style1 = pygame.image.load('assets/characters/character1/walking1.png')
+# 	char_style1 = pygame.transform.scale(char_style1, (648, 648))
+# 	char_style2 = pygame.image.load('assets/characters/character2/walking1.png')
+# 	char_style2 = pygame.transform.scale(char_style2, (648, 648))
+# 	char_style3 = pygame.image.load('assets/characters/character3/walking1.png')
+# 	char_style3 = pygame.transform.scale(char_style3, (648, 648))
+# 	surface.blit(char_style1, (-150, 30))
+# 	surface.blit(char_style2, (300, 10))
+# 	surface.blit(char_style3, (700, -10))
+#
+# 	character1 = char_style1.get_rect()
+# 	character2 = char_style2.get_rect()
+# 	character3 = char_style3.get_rect()
+#
+# 	pos = pygame.mouse.get_pos()
+#
+# 	clicked = False
+#
+# 	if character1.collidepoint(pos):
+# 		if pygame.mouse.get_pressed()[0] == 1 and clicked == False:
+# 			self.clicked = True
+# 			print('Character 1')
+# 	if pygame.mouse.get_pressed()[0] == 0:
+#             self.clicked == False
+#
+# 	# if self.rect.collidepoint(pos):
+# 	# 	if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
+# 	# 		self.clicked = True
+# 	# 		action = True
+# 	# if pygame.mouse.get_pressed()[0] == 0:
+# 	# 	self.clicked == False
+#
+# 	run = True
+# 	while run:
+# 		if char_style1 == True:
+# 			print('You chose Character 1')
+# 		elif char_style2 == True:
+# 			print('You chose Character 2')
+# 		elif char_style3 == True:
+# 			print('You chose Character 3')
+# 		for event in pygame.event.get():
+# 			if event.type == pygame.QUIT():
+# 				pygame.quit()
+# 			pygame.display.update()
+def credits(surface):
+	options = [('Gisselle Derije', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 40)), ('Leandrei Sagun', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 100))]
+	selected = 0
+	exit = False
+	while not exit:
+		for event in pygame.event.get():
+			if event.type == QUIT:
+				exit()
+			if event.type == KEYDOWN:
+				if event.key == pygame.K_RETURN:
+					main_menu(surface)
+				if event.key == pygame.K_BACKSPACE:
+					main_menu(surface)
+				# if event.key == pygame.K_w or event.key == pygame.K_UP:
+				# 	selected = (selected - 1) % 4
+				# if event.key == pygame.K_s or event.key == pygame.K_DOWN:
+				# 	selected = (selected + 1) % 4
+		surface.blit(MENU_BACKGROUND, (0, 0))
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 60)
+		draw_text(surface, font, 'Settings', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 - 100), WHITE)
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 40)
+		for option in options:
+			draw_text(surface, font, option[0], option[1], WHITE)
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 30)
+		draw_text(surface, font, '*', (options[selected][1][0] - 230, options[selected][1][1]), WHITE)
+		pygame.display.flip()
 
-    def draw_cursor(self):
-        self.game.draw_text_white('*', 30, self.cursor_rect.x, self.cursor_rect.y)
+def end_display(surface):
+	options = [('Gisselle Derije', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 40)), ('Leandrei Sagun', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 + 100))]
+	selected = 0
+	exit = False
+	while not exit:
+		for event in pygame.event.get():
+			if event.type == QUIT:
+				exit()
+		surface.blit(END_BACKGROUND, (0, 0))
+		font = pygame.font.Font("assets/font/8-BIT WONDER.TTF", 40)
+		draw_text(surface, font, 'Thanks For Playing', (DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2), ENDING_RED)
+		pygame.display.flip()
 
-    def blit_screen(self):
-        self.game.window.blit(self.game.display, (0, 0))
-        pygame.display.update()
-        self.game.reset_keys()
+def start_video(surface):
+	pygame.display.set_caption('Valo.mini')
+	pygame.display.set_icon(pygame.image.load('assets/logo/valo.png'))
+	mixer.pre_init(44100, -16, 1, 24000)
+	mixer.quit()
+	mixer.init()
+	video = cv2.VideoCapture("assets/intro/introduction.wmv")
+	success, video_image = video.read()
+	fps = video.get(cv2.CAP_PROP_FPS)
+	sound = mixer.Sound("assets/intro/intro.wav")
+	mixer.Sound.play(sound)
+	clock = pygame.time.Clock()
 
-class MainMenu(Menu):
-    def __init__(self, game):
-        Menu.__init__(self, game)
-        self.state = "Start"
-        self.startx, self.starty = self.mid_w, self.mid_h + 30
-        self.optionsx, self.optionsy = self.mid_w, self.mid_h + 80
-        self.creditsx, self.creditsy = self.mid_w, self.mid_h + 130
-        self.quitx, self.quity = self.mid_w, self.mid_h + 220
-        self.cursor_rect.midtop = (self.startx + self.offset, self.starty)
-        self.background = pygame.image.load('assets/background/titlescreen-fullscreen.png')
-        self.game.introductory_video()
+	run = success
+	while run:
+		clock.tick(fps)
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT:
+				run = False
 
-    def display_menu(self):
-        self.run_display = True
-        while self.run_display:
-            self.game.check_events()
-            self.check_input()
-            self.game.display.blit(self.background, (0, 0))
-            self.game.draw_text_white('VALORANT MINI', 60, self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2 - 100)
-            self.game.draw_text_white('Start Game', 40, self.startx, self.starty)
-            self.game.draw_text_white('Options', 40, self.optionsx, self.optionsy)
-            self.game.draw_text_white('Credits', 40, self.creditsx, self.creditsy)
-            self.game.draw_text_white('Quit', 40, self.quitx, self.quity)
-            self.draw_cursor()
-            self.blit_screen()
+		success, video_image = video.read()
+		if success:
+			video_surf = pygame.image.frombuffer(
+				video_image.tobytes(), video_image.shape[1::-1], "BGR")
+			video_surf = pygame.transform.scale(video_surf, (1280, 720))
 
-    def move_cursor(self):
-        if self.game.DOWN_KEY:
-            if self.state == 'Start':
-                self.cursor_rect.midtop = (self.optionsx + self.offset, self.optionsy)
-                self.state = 'Options'
-            elif self.state == 'Options':
-                self.cursor_rect.midtop = (self.creditsx + self.offset, self.creditsy)
-                self.state = 'Credits'
-            elif self.state == 'Credits':
-                self.cursor_rect.midtop = (self.quitx + self.offset, self.quity)
-                self.state = 'Quit'
-            elif self.state == 'Quit':
-                self.cursor_rect.midtop = (self.startx + self.offset, self.starty)
-                self.state = 'Start'
-        if self.game.UP_KEY:
-            if self.state == 'Start':
-                self.cursor_rect.midtop = (self.quitx + self.offset, self.quity)
-                self.state = 'Quit'
-            elif self.state == 'Options':
-                self.cursor_rect.midtop = (self.startx + self.offset, self.starty)
-                self.state = 'Start'
-            elif self.state == 'Credits':
-                self.cursor_rect.midtop = (self.optionsx + self.offset, self.optionsy)
-                self.state = 'Options'
-            elif self.state == 'Quit':
-                self.cursor_rect.midtop = (self.creditsx + self.offset, self.creditsy)
-                self.state = 'Credits'
-
-    def check_input(self):
-        self.move_cursor()
-        if self.game.START_KEY:
-            if self.state == 'Start':
-                self.game.playing = True
-            elif self.state == 'Options':
-                self.game.curr_menu = self.game.options
-            elif self.state == 'Credits':
-                self.game.curr_menu = self.game.credits
-            elif self.state == 'Quit':
-                pygame.quit()
-                exit()
-            self.run_display = False
-
-
-class OptionsMenu(Menu):
-    def __init__(self, game):
-        Menu.__init__(self, game)
-        self.state = 'Volume'
-        self.volx, self.voly = self.mid_w, self.mid_h + 60
-        self.controlsx, self.controlsy = self.mid_w, self.mid_h + 120
-        self.cursor_rect.midtop = (self.volx + self.offset, self.voly)
-        self.background = pygame.image.load('assets/background/titlescreen-fullscreen.png')
-
-    def display_menu(self):
-        self.run_display = True
-        while self.run_display:
-            self.game.check_events()
-            self.check_input()
-            # self.game.display.fill((0, 0, 0))
-            self.game.display.blit(self.background, (0, 0))
-            self.game.draw_text_white('Options', 60, self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2 - 100)
-            self.game.draw_text_white('Volume', 40, self.volx, self.voly)
-            self.game.draw_text_white('Controls', 40, self.controlsx, self.controlsy)
-            self.draw_cursor()
-            self.blit_screen()
-
-    def check_input(self):
-        if self.game.BACK_KEY:
-            self.game.curr_menu = self.game.main_menu
-            self.run_display = False
-        elif self.game.UP_KEY or self.game.DOWN_KEY:
-            if self.state  == 'Volume':
-                self.state = 'Controls'
-                self.cursor_rect.midtop = (self.controlsx + self.offset, self.controlsy)
-            elif self.state == 'Controls':
-                self.state = 'Volume'
-                self.cursor_rect.midtop = (self.volx + self.offset, self.voly)
-        elif self.game.START_KEY:
-            pass
-
-class CreditsMenu(Menu):
-    def __init__(self, game):
-        Menu.__init__(self, game)
-        self.background = pygame.image.load('assets/background/titlescreen-fullscreen.png')
-
-    def display_menu(self):
-        self.run_display = True
-        while self.run_display:
-            self.game.check_events()
-            if self.game.START_KEY or self.game.BACK_KEY:
-                self.game.curr_menu = self.game.main_menu
-                self.run_display = False
-            # self.game.display.fill(self.game.BLACK)
-            self.game.display.blit(self.background, (0, 0))
-            self.game.draw_text_white('Credits', 60, self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2 - 100)
-            self.game.draw_text_white('Gisselle Derije', 40, self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2 + 40)
-            self.game.draw_text_white('Leandrei Sagun', 40, self.game.DISPLAY_W / 2, self.game.DISPLAY_H / 2 + 100)
-            self.blit_screen()
+		else:
+			run = False
+		surface.blit(video_surf, (0, 0))
+		pygame.display.flip()
+	main_menu(surface)
