@@ -7,18 +7,25 @@ import pygame
 from pygame.locals import *
 
 class Player(pygame.sprite.Sprite):
-	def __init__(self, ID, username, location):
+	def __init__(self, ID, username, location, character):
 		pygame.sprite.Sprite.__init__(self)
 		self.ID = ID
 		self.username = username
 		self.health = 100
+		self.image = pygame.Surface([38, 38], pygame.SRCALPHA)
+		self.rect = self.image.get_rect(center = location)
 		self.location = location
-		self.image = pygame.Surface([2*7, 2*7], pygame.SRCALPHA)
-		self.rect = pygame.draw.circle(self.image, (7,135,123), (7, 7), 7)
-		self.rect.center = location
-	def set_location(self, location):
+		self.character = character
+		self.state = "walking"
+		self.animation_count = 0
+		self.angle = 0
+	def update(self, location, character, state, animation_count, angle):
 		self.location = location
 		self.rect.center = location
+		self.character = character
+		self.state = state
+		self.animation_count = animation_count
+		self.angle = angle
 class Cover(pygame.sprite.Sprite):
 	def __init__(self, x, y, width, height):
 		pygame.sprite.Sprite.__init__(self)
@@ -37,7 +44,7 @@ class Bullet(pygame.sprite.Sprite):
 		self.damage = 10
 		o_x, o_y = origin
 		x, y = direction
-		self.location = (math.ceil(o_x + (7 + 3) * (x / math.sqrt(x**2 + y**2))), math.ceil(o_y + (7 + 3) * (y / math.sqrt(x**2 + y**2))))
+		self.location = (math.ceil(o_x + (38 + 3) * (x / math.sqrt(x**2 + y**2))), math.ceil(o_y + (38 + 3) * (y / math.sqrt(x**2 + y**2))))
 		self.rect.center = self.location
 		scale = magnitude / math.sqrt(x**2 + y**2)
 		self.velocity = (x * scale, y * scale)
@@ -87,7 +94,7 @@ for i in range(covers_count):
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 print('Waiting for a Connection..')
-ServerSocket.listen(5)
+ServerSocket.listen()
 players_to_remove = []
 
 def threaded_client(connection):
@@ -95,25 +102,26 @@ def threaded_client(connection):
 	player_id = player_count
 	player_count += 1
 	connection.send(str.encode(str([(cover.location, cover.width, cover.height) for cover in covers.sprites()])))
-	username = connection.recv(64)
-	location = (random.uniform(250, MAP_WIDTH - 250), random.uniform(250, MAP_HEIGHT - 250))
-	player = Player(player_id, username, location)
+	initial_data = connection.recv(64)
+	username, character = eval(initial_data.decode('utf-8'))
+	location = (random.uniform(DISPLAY_WIDTH / 2, MAP_WIDTH - DISPLAY_WIDTH / 2), random.uniform(DISPLAY_HEIGHT / 2, MAP_HEIGHT - DISPLAY_HEIGHT / 2))
+	player = Player(player_id, username, location, character)
 	players.add(player)
 	connection.send(str.encode(str((player_id, location, 100))))
 	connection.recv(64)
 	data = {}
 	for player in players.sprites():
-		data[player.ID] = (player.username, player.location, player.health)
+		data[player.ID] = (player.username, player.location, player.health, player.character, player.state, player.animation_count, player.angle)
 	connection.send(str.encode(str(data)))
 	while True:
-		new_location = connection.recv(2048)
-		if not new_location:
+		new_info = connection.recv(2048)
+		if not new_info:
 			break
-		new_location = eval(new_location.decode('utf-8'))
+		location, character, state, animation_count, angle = eval(new_info.decode('utf-8'))
 		for player in players.sprites():
 			if player.ID == player_id:
-				player.set_location(new_location)
-			data[player.ID] = (player.username, player.location, player.health)
+				player.update(location, character, state, animation_count, angle)
+			data[player.ID] = (player.username, player.location, player.health, player.character, player.state, player.animation_count, player.angle)
 		connection.send(str.encode(str(data)))
 		bullets.update()
 		bullet = connection.recv(1024)

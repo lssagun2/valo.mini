@@ -42,7 +42,8 @@ def game(username, character):
 
 	#communicate with server about player information (id and initial location) of this client
 	my_username = username
-	client_socket.send(str.encode(my_username))
+	my_character = character
+	client_socket.send(str.encode(str((my_username, my_character))))
 	my_info = client_socket.recv(2048)
 	my_info = eval(my_info.decode('utf-8'))
 	my_id, my_location, my_health = my_info
@@ -56,7 +57,7 @@ def game(username, character):
 	players = pygame.sprite.Group()
 	alive_players = pygame.sprite.Group()
 	dead_players = pygame.sprite.Group()
-	me = Player(my_id, my_username, my_location, my_health, 5, character)
+	me = Player(my_id, my_username, my_location, my_health, 5, my_character)
 	players.add(me)
 	alive_players.add(me)
 
@@ -68,9 +69,9 @@ def game(username, character):
 	for ID, values in other_players.items():
 		if ID == me.ID:
 			continue
-		username, location, health = values
-		players.add(Player(ID, username, location, health, 5))
-		alive_players.add(Player(ID, username, location, health, 5))
+		username, location, health, character, state, animation_count, angle = values
+		players.add(Player(ID, username, location, health, 5, character, state))
+		alive_players.add(Player(ID, username, location, health, 5, character, state))
 	done = False
 	while not done:
 		if me.health <= 0:
@@ -125,18 +126,18 @@ def game(username, character):
 		me.animate(pygame.mouse.get_pos())
 
 		#send this player's location to the server
-		client_socket.send(str.encode(str(me.location)))
+		client_socket.send(str.encode(str((me.location, me.character, me.state, me.animation_count, me.angle))))
 
 		#update other players' location
 		players_info = client_socket.recv(8192)
 		players_info = eval(players_info.decode('utf-8'))
 		IDs = list(players_info.keys())
 		values = list(players_info.values())
-		usernames, locations, healths = list(zip(*values))
+		usernames, locations, healths, characters, states, animation_counts, angles = list(zip(*values))
 		locations = dict(zip(IDs, locations))
 		players_to_remove = []
 		for player in alive_players.sprites():
-			player.update(locations[player.ID], healths[player.ID])
+			player.update(locations[player.ID], healths[player.ID], characters[player.ID], states[player.ID], animation_counts[player.ID], angles[player.ID])
 			if player.health <= 0:
 				alive_players.remove(player)
 				dead_players.add(player)
@@ -145,9 +146,9 @@ def game(username, character):
 		if len(players.sprites()) != len(players_info):
 			new_players = [ID for ID in IDs if ID not in [player.ID for player in players.sprites()]]
 			for ID in new_players:
-				username, location, health = players_info[ID]
-				players.add(Player(ID, username, location, health, 5))
-				alive_players.add(Player(ID, username, location, health, 5))
+				username, location, health, character, state, animation_count, angle = players_info[ID]
+				players.add(Player(ID, username, location, health, 5, character, state))
+				alive_players.add(Player(ID, username, location, health, 5, character, state))
 
 		#send bullet information to server
 		if mouse_pressed[1] == True:
@@ -167,7 +168,7 @@ def game(username, character):
 		left -= DISPLAY_WIDTH / 2
 		top -= DISPLAY_HEIGHT / 2
 		display_surface.blit(MAP, (0, 0), (left, top, DISPLAY_WIDTH, DISPLAY_HEIGHT))
-		draw_group(covers, me.rect.center, display_surface)
+		# draw_group(covers, me.rect.center, display_surface)
 		draw_group(alive_players, me.rect.center, display_surface)
 		draw_group(bullets, me.rect.center, display_surface)
 		screen.blit(display_surface, (0, 0))

@@ -19,13 +19,6 @@ display_surface = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
 display_surface = display_surface.convert()
 MAP.convert()
 
-char_style1 = pygame.image.load('assets/characters/character1/walking/1.png').convert_alpha()
-char_style2 = pygame.image.load('assets/characters/character2/walking/1.png').convert_alpha()
-char_style3 = pygame.image.load('assets/characters/character3/walking/1.png').convert_alpha()
-char_style1 = pygame.transform.scale(char_style1, (648, 648))
-char_style2 = pygame.transform.scale(char_style2, (648, 648))
-char_style3 = pygame.transform.scale(char_style3, (648, 648))
-
 #load images into dictionaries
 images = {"character1": None, "character2": None, "character3": None}
 for character in images.keys():
@@ -35,7 +28,7 @@ for character in images.keys():
 		images[character][state] = [pygame.image.load(directory + str(i) + ".png") for i in range(1, 5)]
 
 class Player(pygame.sprite.Sprite):
-	def __init__(self, ID, username, location, health, speed, character = "character1", state = "walking"):
+	def __init__(self, ID, username, location, health, speed, character = "character1", state = "walking", angle = 0):
 		pygame.sprite.Sprite.__init__(self)
 		self.ID = ID
 		self.username = username
@@ -51,25 +44,25 @@ class Player(pygame.sprite.Sprite):
 		self.state = state
 		self.image = images[character][state][0]
 		self.mask = pygame.mask.from_surface(self.image)
+		self.angle = 0
 		self.rect = self.image.get_rect(center = location)
 		self.location = location
 
-	def update(self, location, health):
-		self.location = location
+	def update(self, location, health, character, state, animation_count, angle):
+		self.image = pygame.transform.rotate(images[character][state][animation_count // 8], angle)
+		self.mask = pygame.mask.from_surface(self.image)
+		self.rect = self.image.get_rect()
 		self.rect.center = location
+		self.location = location
 		self.health = health
 
 	def animate(self, mouse_position):
 		x, y = mouse_position
-		angle = (180 / math.pi) * (-math.atan2(y - DISPLAY_HEIGHT/2, x - DISPLAY_WIDTH/2))
+		self.angle = (180 / math.pi) * (-math.atan2(y - DISPLAY_HEIGHT/2, x - DISPLAY_WIDTH/2))
 		if self.still:
-			self.image = pygame.transform.rotate(images[self.character][self.state][0], angle)
+			self.animation_count = 0
 		else:
-			self.image = pygame.transform.rotate(images[self.character][self.state][self.animation_count // 8], angle)
-		self.mask = pygame.mask.from_surface(self.image)
-		self.rect = self.image.get_rect()
-		self.rect.center = self.location
-		self.animation_count = (self.animation_count + 1) % 32
+			self.animation_count = (self.animation_count + 1) % 32
 
 	def reload(self):
 		if self.ammo > self.gun.clip_size - self.gun.ammo:
@@ -85,6 +78,8 @@ class Player(pygame.sprite.Sprite):
 		if not self.reloading:
 			if self.gun.ammo > 0:
 				if current_time - self.time_last_fired > 1 / self.gun.fire_rate:
+					fire_sound = mixer.Sound('assets/background/music/submachine-gun.wav')
+					fire_sound.play()
 					self.time_last_fired = current_time
 					self.gun.ammo -= 1
 					origin = self.location
@@ -93,9 +88,9 @@ class Player(pygame.sprite.Sprite):
 					return (origin, direction, self.gun.bullet_speed)
 			else:
 				if self.ammo > 0:
-					self.reloading = True
-					bullet_reload = mixer.Sound('assets/background/music/reload.mp3')
+					bullet_reload = mixer.Sound('assets/background/music/reload.wav')
 					bullet_reload.play()
+					self.reloading = True
 					pygame.time.set_timer(RELOAD, self.gun.reload_time, loops = 1)
 		return " "
 class Cover(pygame.sprite.Sprite):
