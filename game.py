@@ -21,7 +21,7 @@ def draw_group(group, center, surface):
 			left, top =  (x - c_x) + DISPLAY_WIDTH / 2 - username_display.get_width() / 2, (y - c_y) + DISPLAY_HEIGHT / 2 - username_display.get_height() / 2 - 35
 			surface.blit(username_display, (left, top))
 
-def game(username):
+def game(username, character):
 	client_socket = socket.socket()
 	HOST = '127.0.0.1'
 	PORT = 1233
@@ -48,11 +48,15 @@ def game(username):
 	my_id, my_location, my_health = my_info
 	client_socket.send(str.encode("received"))
 
+	#sound effects
+	# mixer.music.load("assets/background/music/game_bg.mp3")
+	# mixer.music.play(-1)
+
 	#create Player object for this client
 	players = pygame.sprite.Group()
 	alive_players = pygame.sprite.Group()
 	dead_players = pygame.sprite.Group()
-	me = Player(my_id, my_username, my_location, my_health, 5)
+	me = Player(my_id, my_username, my_location, my_health, 5, character)
 	players.add(me)
 	alive_players.add(me)
 
