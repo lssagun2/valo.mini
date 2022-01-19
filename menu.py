@@ -135,8 +135,6 @@ def start_video(surface):
 	pygame.init()
 	pygame.display.set_caption('Valo.mini')
 	pygame.display.set_icon(pygame.image.load('assets/logo/valo.png'))
-	mixer.pre_init(44100, -16, 1, 24000)
-	mixer.quit()
 	mixer.init()
 	video = cv2.VideoCapture("assets/intro/introduction.wmv")
 	success, video_image = video.read()

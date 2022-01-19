@@ -19,13 +19,15 @@ class Player(pygame.sprite.Sprite):
 		self.state = "walking"
 		self.animation_count = 0
 		self.angle = 0
-	def update(self, location, character, state, animation_count, angle):
+		self.gun_name = ""
+	def update(self, location, character, state, animation_count, angle, gun_name):
 		self.location = location
 		self.rect.center = location
 		self.character = character
 		self.state = state
 		self.animation_count = animation_count
 		self.angle = angle
+		self.gun_name = gun_name
 class Cover(pygame.sprite.Sprite):
 	def __init__(self, x, y, width, height):
 		pygame.sprite.Sprite.__init__(self)
@@ -62,11 +64,17 @@ class Bullet(pygame.sprite.Sprite):
 		covers_hit = pygame.sprite.spritecollide(self, covers, False)
 		if len(covers_hit) != 0:
 			self.kill()
+class Gun(pygame.sprite.Sprite):
+	def __init__(self, name, location):
+		pygame.sprite.Sprite.__init__(self)
+		self.name = name
+		self.location = location
 DISPLAY_WIDTH = 1280
-DISPLAY_HEIGHT = 720
+DISPLAY_HEIGHT = 768
 MAP_WIDTH = 5760 + DISPLAY_WIDTH
 MAP_HEIGHT = 5760 + DISPLAY_HEIGHT
-covers_count = 0
+covers_count = 100
+guns_count = 200
 
 ServerSocket = socket.socket()
 host = '127.0.0.1'
@@ -79,18 +87,25 @@ except socket.error as e:
 
 #initialize map
 covers = pygame.sprite.Group()
-covers.add(Cover(0, 0, MAP_WIDTH, DISPLAY_HEIGHT / 2))
-covers.add(Cover(0, MAP_HEIGHT - DISPLAY_HEIGHT / 2, MAP_WIDTH, DISPLAY_HEIGHT / 2))
-covers.add(Cover(0, 0, DISPLAY_WIDTH / 2, MAP_HEIGHT))
-covers.add(Cover(MAP_WIDTH - DISPLAY_WIDTH / 2, 0, DISPLAY_WIDTH / 2, MAP_HEIGHT))
+covers.add(Cover(0, 0, MAP_WIDTH, DISPLAY_HEIGHT // 2))
+covers.add(Cover(0, MAP_HEIGHT - DISPLAY_HEIGHT // 2, MAP_WIDTH, DISPLAY_HEIGHT // 2))
+covers.add(Cover(0, 0, DISPLAY_WIDTH // 2, MAP_HEIGHT))
+covers.add(Cover(MAP_WIDTH - DISPLAY_WIDTH // 2, 0, DISPLAY_WIDTH // 2, MAP_HEIGHT))
 for i in range(covers_count):
-	cover = Cover(random.uniform(0, MAP_WIDTH), random.uniform(0, MAP_HEIGHT), random.uniform(40, 80), random.uniform(40, 80))
+	cover = Cover(random.randint(0, MAP_WIDTH), random.randint(0, MAP_HEIGHT), random.randint(4, 8) * 32, random.randint(4, 8) * 32)
 	while True:
 		if not pygame.sprite.spritecollide(cover, covers, False): break
-		cover.rect.x, cover.rect.y = random.uniform(0, MAP_WIDTH), random.uniform(0, MAP_HEIGHT)
+		cover.rect.x, cover.rect.y = random.randint(0, MAP_WIDTH), random.randint(0, MAP_HEIGHT)
 	cover.location = (cover.rect.x, cover.rect.y)
 	covers.add(cover)
 
+gun_list = ["odin", "spectre", "vandal"]
+guns = pygame.sprite.Group()
+for i in range(guns_count):
+	name = random.choice(gun_list)
+	location = (random.randint(DISPLAY_WIDTH / 2, MAP_WIDTH - DISPLAY_WIDTH / 2), random.randint(DISPLAY_HEIGHT / 2, MAP_HEIGHT - DISPLAY_HEIGHT / 2))
+	gun = Gun(name, location)
+	guns.add(gun)
 players = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 print('Waiting for a Connection..')
@@ -102,6 +117,8 @@ def threaded_client(connection):
 	player_id = player_count
 	player_count += 1
 	connection.send(str.encode(str([(cover.location, cover.width, cover.height) for cover in covers.sprites()])))
+	confirmation = connection.recv(64)
+	connection.send(str.encode(str([(gun.name, gun.location) for gun in guns.sprites()])))
 	initial_data = connection.recv(64)
 	username, character = eval(initial_data.decode('utf-8'))
 	location = (random.uniform(DISPLAY_WIDTH / 2, MAP_WIDTH - DISPLAY_WIDTH / 2), random.uniform(DISPLAY_HEIGHT / 2, MAP_HEIGHT - DISPLAY_HEIGHT / 2))
@@ -117,11 +134,11 @@ def threaded_client(connection):
 		new_info = connection.recv(2048)
 		if not new_info:
 			break
-		location, character, state, animation_count, angle = eval(new_info.decode('utf-8'))
+		location, character, state, animation_count, angle, gun_name = eval(new_info.decode('utf-8'))
 		for player in players.sprites():
 			if player.ID == player_id:
-				player.update(location, character, state, animation_count, angle)
-			data[player.ID] = (player.username, player.location, player.health, player.character, player.state, player.animation_count, player.angle)
+				player.update(location, character, state, animation_count, angle, gun_name)
+			data[player.ID] = (player.username, player.location, player.health, player.character, player.state, player.animation_count, player.angle, player.gun_name)
 		connection.send(str.encode(str(data)))
 		bullets.update()
 		bullet = connection.recv(1024)
